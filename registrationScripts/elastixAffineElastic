@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# This elastix script registers the moving to the fixed image in two
+# steps:
+#
+# Step 1 is an affine alignment
+# Step 2 is an non-linear elastic alignment
+
+
+
+# TODO consider making this nicer
+moving="$1"
+shift
+fixed="$1"
+shift
+output="$1"
+shift
+affine_params="$1"
+shift
+params="$1"
+shift
+
+
+
+nThreads="4"
+affine_output="${output}_affine"
+
+mkdir $output
+mkdir $affine_output
+
+echo "AFFINE"
+elastix -f $fixed \
+    -m $moving \
+    -out $affine_output \
+    -threads $nThreads \
+    -p $affine_params
+
+affine_result=$(ls ${affine_output}/TransformParameters.0.txt)
+
+echo "BSPLINE"
+elastix -f $fixed \
+    -t0 $affine_result \
+    -m $moving \
+    -out $output \
+    -threads $nThreads \
+    -p $params
+
