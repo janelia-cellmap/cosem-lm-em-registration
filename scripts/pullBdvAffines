@@ -1,0 +1,17 @@
+#!/bin/bash
+# Extract affine transformations from bigdataviewer settings xmls
+# Fast and cheap, and not all that robust
+
+in="$1"
+
+affines=$(grep '<affine>' bdvSettings.xml | sed -e 's/ *</</g' -e 's/> */>/g' -e 's/ /,/g')
+
+i=0
+for line in $affines
+do
+    out=$(printf 'affine_%04d.txt' $i)
+    echo $out
+    echo $line | sed 's:</\?affine>::g' > $out
+    ((i++))
+done
+
