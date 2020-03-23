@@ -1,0 +1,83 @@
+#!/bin/bash
+# runs scripts and stores them in a loction specified by your
+# EXP_SAVE_PATH environment variable
+# if EXP_SAVE_PATH is not specified, it will default to using the current working directory
+
+
+EXP_SAVE_PATH_DEFAULT=$(pwd)
+
+#EXP_SAVE_PATH=${EXP_SAVE_PATH:=$EXP_SAVE_PATH_DEFAULT}
+#echo $EXP_SAVE_PATH
+
+if [ -z "$EXP_SAVE_PATH" ]; then
+    #echo "EXP_SAVE_PATH environment variable not set, using default EXP_SAVE_PATH=$EXP_SAVE_PATH_DEFAULT" 1>&2
+    echo "EXP_SAVE_PATH environment variable not set, using default EXP_SAVE_PATH=$EXP_SAVE_PATH_DEFAULT"
+    EXP_SAVE_PATH=$EXP_SAVE_PATH_DEFAULT
+fi
+
+echo $EXP_SAVE_PATH
+ 
+script_name="$1"
+if [[ "$script_name" == */* ]]; then
+    script_path="$( realpath $script_name )"
+    script_name="$( basename $script_name )"
+else
+    echo "here"
+    script_path="$( realpath $script_name )"
+fi 
+summary=$2
+
+# check that directory exists
+# if not, make it
+if [ ! -d $EXP_SAVE_PATH ]; then
+    echo "Creating saved shell experiments directory"
+	mkdir -p $EXP_SAVE_PATH
+fi
+
+cwd=$(pwd)
+
+cd $EXP_SAVE_PATH
+
+# Check to see if there are any experiments yet
+# if not, create an exp0001 directory
+if [ -z `find . -type d -name 'exp0001*'` ]; then
+	echo "first exp"
+	expnum="0001"
+else
+   tmp=`ls -d ./*/`
+   expnum=`ls -d ./*/ | tail -n 1 | sed 's:^./exp0*\([0-9]\+\).*:\1:g'`
+   ((expnum++))
+   expnum=`printf '%04d' $expnum`
+   echo $expnum
+fi
+
+# Grab time stamp
+time_suffix=`date +%Y%m%d%H%M%S`
+expdir="$EXP_SAVE_PATH/exp"$expnum"_"$script_name"_"$time_suffix
+
+echo $expdir
+mkdir -p $expdir
+
+#echo "a"
+#echo "$script_path"
+#echo "$script_name"
+#echo "$expdir"
+
+# put a read-only copy of the script into the output directory
+cp $script_path $expdir
+chmod 0444 $expdir/$script_name
+chmod +x $expdir/$script_name
+
+outputfn="$expdir/output.txt"
+
+echo "exp$expnum: $script_name" > $outputfn
+echo $summary >> $outputfn
+echo " "  >> $outputfn
+
+# run the script and save output
+#echo "$script_path $expdir $@ >> $outputfn"
+cd $expdir
+./$script_name $expdir $@ >> $outputfn
+    
+
+cd $cwd
