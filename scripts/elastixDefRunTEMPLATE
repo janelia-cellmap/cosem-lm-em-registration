@@ -1,0 +1,21 @@
+#!/bin/bash
+# Deformable part with affine initialization
+
+mvg="/nrs/saalfeld/john/projects/cosem/LID494_ROI2/mito_membrane_s4_b115.nrrd"
+
+tgt="/nrs/saalfeld/john/projects/cosem/LID494_ROI2/sim_raw.nrrd"
+
+initParams="/nrs/saalfeld/john/projects/cosem/LID494_ROI2/regexps/exp0001_elastixAffineRun_20200316131628/result/TransformParameters.0.txt"
+
+%PARAMS
+%RESULT
+
+nThreads="4"
+mkdir $result
+elastix -f $tgt \
+        -m $mvg \
+        -t0 $initParams \
+        -out $result \
+        -threads $nThreads \
+        -p $params
+

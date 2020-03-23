@@ -1,0 +1,39 @@
+#!/bin/bash
+# 
+# Run a series of experiments using different parameters.
+#
+# Usage: cosemParameterScan <script-template> <parameter-1> ...  <parameter-N>
+#
+# The template script should have one line containing only '%PARAMS'
+# and one line containing only '%RESULT'.  
+# 
+# See elastixDefRunTEMPLATE for an example
+
+templateScript="$1"
+shift
+
+echo $templateScript
+
+i=0
+for param in $@
+do
+    echo $param
+
+    p="params=\"$param\""
+    echo $p
+
+    istr=$(printf "%04d" $i)
+    
+    script="script_$istr.sh"
+    echo $script
+
+    r="result=\"result_$istr\""
+
+    sed -e "s:%PARAMS:$p:g" -e "s/%RESULT/$r/g" $templateScript > $script
+    chmod +x $script
+
+    runExp $script
+
+    ((i++))
+done
+
