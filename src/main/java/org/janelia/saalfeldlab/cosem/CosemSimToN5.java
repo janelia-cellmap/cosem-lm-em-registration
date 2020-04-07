@@ -1,8 +1,10 @@
 package org.janelia.saalfeldlab.cosem;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 
+import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -46,6 +48,9 @@ public class CosemSimToN5 implements Callable<Void>
 	@Option( names = { "-s", "--iso-dataset" }, required = false, description = "Base dataset for isotropic data." )
 	private String isoDatasetBase = "/volumes/proc";
 
+	@Option( names = { "--start-index" }, required = false, description = "Starting index for channels." )
+	private int startIdx = 0;
+
 	public static void main(String[] args)
 	{
 		CommandLine.call( new CosemSimToN5(), args );	
@@ -76,7 +81,7 @@ public class CosemSimToN5 implements Callable<Void>
 			pd *= 1000;
 			punit = "nm";
 		}
-		
+
 		CosemResolution res = new CosemResolution( new double[]{ pw, ph, pd }, punit );
 
 		@SuppressWarnings("unchecked")
@@ -84,28 +89,48 @@ public class CosemSimToN5 implements Callable<Void>
 
 		N5Writer n5 = new N5FSWriter( n5Base );
 		GzipCompression compression = new GzipCompression();
-		
-		// channels in the 3rd dimension
-		for( int i = 0; i < img.dimension( 2 ); i++ )
-		{
-			IntervalView<T> channelImg = Views.hyperSlice( img, 2, i );
 
+		if( img.numDimensions() == 3 )
+		{
+			runSingle( startIdx, img, n5, compression, res );
+		}
+		else if( img.numDimensions() == 4 ) 
+		{
+			// channels in the 3rd dimension
+			for( int i = 0; i < img.dimension( 2 ); i++ )
+			{
+				IntervalView<T> channelImg = Views.hyperSlice( img, 2, i );
+				runSingle( startIdx + i, channelImg, n5, compression, res );
+			}
+		}
+		else
+		{
+			System.err.println("Only 3d and 4d implemented");
+		}
+		System.out.println("finished");
+	}
+
+	public <T extends RealType<T> & NativeType<T>> void runSingle( 
+			final int i,
+			final RandomAccessibleInterval<T> img,
+			N5Writer n5,
+			Compression compression,
+			CosemResolution res ) throws IOException
+	{
 			String dataset = datasetBase + "/" + String.format( "c%d", i );
-			N5Utils.save( channelImg, n5, dataset, blockSize, compression );
+			N5Utils.save( img, n5, dataset, blockSize, compression );
 			n5.setAttribute( dataset, CosemResolution.key, res );
 			
 			if( !skipIso )
 			{
 				double[] newres = isoRes( res.dimension );
-				CosemResolution isoRes = new CosemResolution( newres, punit );
-				RandomAccessibleInterval<T> isoImg = toIsotropic( channelImg, res.dimension, newres );
+				CosemResolution isoRes = new CosemResolution( newres, res.unit );
+				RandomAccessibleInterval<T> isoImg = toIsotropic( img, res.dimension, newres );
 
 				String isoDataset = isoDatasetBase + "/" + String.format( "c%d", i );
 				N5Utils.save( isoImg, n5, isoDataset, blockSize, compression );
 				n5.setAttribute( isoDataset, CosemResolution.key, isoRes );
 			}
-		}
-		System.out.println("finished");
 	}
 
 	public static double[] isoRes( final double[] res )
