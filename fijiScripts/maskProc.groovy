@@ -7,6 +7,19 @@
 import ij.*;
 import ij.plugin.*;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+
+def writeTranslation2D( file, tx, ty, rx, ry )
+{
+	s = String.format( "1.0 0.0 0.0 %f\n0.0 1.0 0.0 %f\n0.0 0.0 1.0 0.0\n0.0 0.0 0.0 1.0", rx*tx, ry*ty );
+	println( s );
+    Files.write( Paths.get( file ), 
+        s.getBytes(),
+        StandardOpenOption.CREATE )
+}
+
 def cropAndMask( img, baseDir, doWrite )
 {
 	roi = img.getRoi();
@@ -33,20 +46,35 @@ def cropAndMask( img, baseDir, doWrite )
 	// crop it according to the roi
 	maskIp.setRoi( roi );
 	mask = new Duplicator().run( maskIp );
+
+    rx = ipDup.getCalibration().pixelWidth;
+    ry = ipDup.getCalibration().pixelHeight;
 	
 	// and set metadata
-	mask.getCalibration().pixelWidth = ipDup.getCalibration().pixelWidth;
-	mask.getCalibration().pixelHeight = ipDup.getCalibration().pixelHeight;
+	mask.getCalibration().pixelWidth = rx;
+	mask.getCalibration().pixelHeight = ry;
 	mask.getCalibration().pixelDepth = ipDup.getCalibration().pixelDepth;
 	
 	mask.getCalibration().xOrigin = bbox.getX();
 	mask.getCalibration().yOrigin = bbox.getY();
 	mask.getCalibration().zOrigin = 0.0;
-	
+
+    IJ.run( mask, "Divide...", "value=255 stack");
+
+    ipDupMasked = new ImageCalculator().run("Multiply create stack", ipDup, mask )
+	ipDupMasked.getCalibration().pixelWidth = rx;
+	ipDupMasked.getCalibration().pixelHeight = ry;
+	ipDupMasked.getCalibration().pixelDepth = ipDup.getCalibration().pixelDepth;
+
+	ipDupMasked.getCalibration().xOrigin = bbox.getX();
+	ipDupMasked.getCalibration().yOrigin = bbox.getY();
+	ipDupMasked.getCalibration().zOrigin = 0.0;
+
 	mask.show();
+
+    // multiply dup image by mask
+
 	
-	// close old mask
-	maskIp.close();
 
 	if( doWrite )
 	{
@@ -54,15 +82,21 @@ def cropAndMask( img, baseDir, doWrite )
 		
 		outputImgF = baseDir.getAbsolutePath() + File.separator + ipDup.getTitle();
 		maskImgF = baseDir.getAbsolutePath() + File.separator + mask.getTitle();
-		
+		translationF = baseDir.getAbsolutePath() + File.separator + mask.getTitle() + "_xlationMaskToOrigPhysical.mat";
+
 		// TODO consider checking for overwriting files here
 		println( outputImgF );
 		println( maskImgF );
-		
-		IJ.run(ipDup, "Nrrd ... ", "nrrd="+outputImgF);
-		IJ.run(ipDup, "Nrrd ... ", "nrrd="+maskImgF);
+		println( translationF );
+
+		writeTranslation2D( translationF, bbox.getX(), bbox.getY(), rx, ry);
+
+		IJ.run( ipDupMasked, "Nrrd ... ", "nrrd="+outputImgF);
+		IJ.run(  mask, "Nrrd ... ", "nrrd="+maskImgF);
 	}
-	
+
+	// close old mask
+	maskIp.close();
 }
 
 def createAndCheckOutputDir( File workingDirectory, String name )
