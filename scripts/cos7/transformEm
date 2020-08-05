@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# Transform EM or segmentations in EM space to LM space for the COS7 cell
+
+# ARGUMENTS
+imageN5="$1"            # The n5 base directory holding image data
+inputDataset="$2"       # The input n5 datseet
+outputDataset="$3"      # The output dataset
+dfieldN5BaseDir="$4"    # The n5 basedirectory
+
+
+xfm="${dfieldN5BaseDir}:fwd"
+
+# non-deformable parts of the registration
+BASEDIR=$(dirname "$0")
+reorient="${BASEDIR}/reorientation.mat"
+um2nm="${BASEDIR}/um2nm.mat"
+
+# https://github.com/saalfeldlab/template-building/blob/master/scripts/sparkTransformN5
+sparkTransformN5 3 \
+    -n $imageN5 \
+    -i "/volumes/raw" \
+    -o "/volumes/raw_transformed_8" \
+    -s  "9018,10725,760" \
+    -r "8,8,8" \
+    -t "${um2nm}?i" \
+    -t $xfm \
+    -t ${reorient}?i \
+    -t "${um2nm}"
+
