@@ -1,0 +1,11 @@
+#!/bin/bash
+
+
+elastix2Dfield palm_def_TransformParameters.txt `pwd`/palm_dfield.nrrd
+
+sed -e 's/^(Size.*$/(Size 1388 1650 59)/g' \
+    -e 's/^(Spacing.*$/(Spacing 0.0520000000 0.0520000000 0.1040000000)/g' \
+    sim_def_TransformParameters.txt > sim_def_TransformParameters_lo.txt
+
+elastix2Dfield sim_def_TransformParameters_lo.txt `pwd`/sim_dfield.nrrd
+

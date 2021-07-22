@@ -1,0 +1,7 @@
+#!/bin/bash
+
+elastix2Dfield palm_def_TransformParameters.txt palm_dfield.nrrd
+
+affineFromDisplacement -i `pwd`/palm_dfield.nrrd 
+
+CreateJacobianDeterminantImage 3 palm_dfield_noAffine.nrrd jacDet.nrrd
